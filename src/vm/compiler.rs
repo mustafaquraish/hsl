@@ -61,6 +61,7 @@ impl Compiler {
                 self.compile(val);
                 self.chunk.write_op(match op {
                     Operator::Not => OpCode::Not,
+                    Operator::Minus => OpCode::Neg,
                     _ => unreachable!(),
                 })
             }

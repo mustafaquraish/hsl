@@ -5,18 +5,33 @@ use name_variant::NamedVariant;
 #[repr(u8)]
 #[derive(IntEnum, NamedVariant, Debug, Copy, Clone)]
 pub enum OpCode {
-    Return = 0,
-    Const = 1,
-    Add = 3,
-    Sub = 4,
-    Mul = 5,
-    Div = 6,
-    Less = 7,
-    Greater = 8,
-    Equal = 9,
-    And = 11,
-    Or = 12,
-    Not = 10,
+    // Values
+    Const = 0,
+    Declare = 1,
+    Save = 2,
+    Load = 3,
+
+    // 15
+    // Operations
+    Add = 16,
+    Sub = 17,
+    Mul = 18,
+    Div = 19,
+    Mod = 20,
+    Pow = 21,
+    Neg = 22,
+
+    // 24
+    // Compare
+    Less = 25,
+    Greater = 26,
+    Equal = 27,
+    And = 28,
+    Or = 29,
+    Not = 30,
+
+    // control flow
+    Return = 65,
 }
 
 pub struct Chunk {

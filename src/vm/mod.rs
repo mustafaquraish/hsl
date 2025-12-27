@@ -70,17 +70,20 @@ impl VM {
                 let val = chunk.read_const(&mut self.ip);
                 self.stack.push(val);
             }
+
             OpCode::Add => binary!(Value::add),
             OpCode::Sub => binary!(Value::sub),
             OpCode::Mul => binary!(Value::mul),
             OpCode::Div => binary!(Value::div),
+            OpCode::Neg => unary!(Value::negate),
+
             OpCode::Less => binary!(Value::lt),
             OpCode::Greater => binary!(Value::gt),
             OpCode::Equal => binary!(Value::equals),
             OpCode::And => binary!(Value::and),
             OpCode::Or => binary!(Value::or),
             OpCode::Not => unary!(Value::not),
-            OpCode::Return => unimplemented!(),
+            _ => unimplemented!(),
         }
         Ok(())
     }

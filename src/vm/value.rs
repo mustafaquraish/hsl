@@ -208,6 +208,20 @@ impl Value {
         Ok(match self {
             Value::Boolean(value) => Value::Boolean(!*value),
             _ => {
+                return Err(
+                    ValueReport::TypeError(format!("Cannot not {}", self.variant_name()))
+                        .make()
+                        .into(),
+                );
+            }
+        })
+    }
+
+    pub fn negate(&self) -> Maybe<Value> {
+        Ok(match self {
+            Value::Integer(value) => Value::Integer(-*value),
+            Value::Float(value) => Value::Float(-*value),
+            _ => {
                 return Err(ValueReport::TypeError(format!(
                     "Cannot negate {}",
                     self.variant_name()
