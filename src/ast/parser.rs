@@ -211,29 +211,8 @@ impl<'contents> Parser<'contents> {
     }
 
     fn parse_statement(&mut self) -> Maybe<Box<Node>> {
-        let Token { kind, span, .. } = self.current;
+        let Token { kind, .. } = self.current;
         match kind {
-            TokenKind::Return => {
-                self.advance();
-                let expr = self.parse_expression(0)?;
-                Ok(NodeKind::Return(expr).make(span).into())
-            }
-            TokenKind::Let => {
-                self.advance();
-                let ident = self.consume_one(TokenKind::Identifier)?.text;
-                // let type_annotation: Option<Type> = match self.current.kind {
-                //     TokenKind::Colon => {
-                //         unimplemented!("Have not implemented type checking yet...")
-                //     }
-                //     _ => None
-                // };
-                self.consume_one(TokenKind::Equals)?;
-                let expr = self.parse_expression(0)?;
-                let span = span.extend(expr.span);
-                Ok(NodeKind::VarDeclaration(ident.to_string(), expr)
-                    .make(span)
-                    .into())
-            }
             _ => self.parse_expression(0),
         }
     }
