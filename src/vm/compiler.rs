@@ -39,20 +39,6 @@ impl Compiler {
                 self.chunk.write_op(OpCode::Echo);
             }
             NodeKind::UnaryOperation(op, val) => {
-                match op {
-                    Operator::Minus => match val.kind {
-                        NodeKind::IntegerLiteral(val) => {
-                            self.handle_integer_const(-(val as isize));
-                            return;
-                        }
-                        NodeKind::FloatLiteral(val) => {
-                            self.chunk.write_const_long(Value::Float(-val));
-                            return;
-                        }
-                        _ => (),
-                    },
-                    _ => (),
-                }
                 self.compile(val);
                 self.chunk.write_op(match op {
                     Operator::Minus => OpCode::Neg,
@@ -68,6 +54,7 @@ impl Compiler {
                     Operator::Minus => OpCode::Sub,
                     Operator::Star => OpCode::Mul,
                     Operator::Slash => OpCode::Div,
+                    Operator::Mod => OpCode::Mod,
                     _ => unreachable!(),
                 });
             }
