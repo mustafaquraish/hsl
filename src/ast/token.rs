@@ -19,6 +19,8 @@ pub enum TokenKind {
     Slash,
     Percent,
     Star,
+    Equals,
+    EqualsEquals,
     StringLiteral,
     Echo,
 }
