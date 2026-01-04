@@ -52,3 +52,13 @@ fn main() {
         Repl::new(&mut vm, &mut report_channel).start_loop();
     }
 }
+
+#[test]
+fn run_tests() {
+    let output = std::process::Command::new("python3")
+        .args(&["./tester.py", "--compiler", "release", "./tests"])
+        .output()
+        .expect("Failed to run testing suite.");
+    println!("{}", std::str::from_utf8(&output.stdout).unwrap());
+    assert!(output.status.success());
+}

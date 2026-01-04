@@ -1,0 +1,4 @@
+/// out: "255\n15\n8"
+echo 0xFF
+echo 0o17
+echo 0b1000

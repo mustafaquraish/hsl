@@ -1,0 +1,3 @@
+/// out: "ababab\nHello world"
+echo "ab" * 3
+echo "Hello" + " " + "world"

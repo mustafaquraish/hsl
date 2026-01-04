@@ -1,0 +1,2 @@
+/// out: "Hello World!"
+echo "Hello\u20World\u21"
