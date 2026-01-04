@@ -66,6 +66,9 @@ impl VM {
         }
 
         match op {
+            OpCode::Echo => {
+                println!("{}", self.stack.pop().unwrap());
+            }
             OpCode::Pop => {
                 self.stack.pop().unwrap();
             }

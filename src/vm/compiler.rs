@@ -34,6 +34,10 @@ impl Compiler {
     pub fn compile(&mut self, node: &Node) {
         match &node.kind {
             NodeKind::Block(_) => unimplemented!("awaiting scopes"),
+            NodeKind::Echo(expr) => {
+                self.compile(expr);
+                self.chunk.write_op(OpCode::Echo);
+            }
             NodeKind::UnaryOperation(op, val) => {
                 match op {
                     Operator::Minus => match val.kind {

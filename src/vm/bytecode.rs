@@ -7,6 +7,7 @@ use name_variant::NamedVariant;
 pub enum OpCode {
     // 0x00-0x01 VM Control
     Stop = 0x00,
+    Echo = 0x01,
 
     // 0x02-0x09 Stack
     Pop = 0x02,
@@ -181,7 +182,7 @@ impl Chunk {
                     _ => unreachable!(),
                 };
                 let val = &self.constants[idx];
-                println!(" {:4} ({val})", idx);
+                println!(" {:#04x} {val:?}", idx);
             }
             OpCode::Jump | OpCode::JumpIfFalse | OpCode::Loop => {
                 let jump_offset = self.read_u16(offset) as usize;

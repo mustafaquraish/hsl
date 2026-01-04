@@ -156,6 +156,7 @@ impl<'contents> Lexer<'contents> {
                     }
                     let kind = match self.slice(start, self.current_index) {
                         "True" | "False" => TokenKind::BooleanLiteral,
+                        "echo" => TokenKind::Echo,
                         _ => TokenKind::Identifier,
                     };
                     self.make_simple(start, kind)

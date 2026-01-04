@@ -211,8 +211,13 @@ impl<'contents> Parser<'contents> {
     }
 
     fn parse_statement(&mut self) -> Maybe<Box<Node>> {
-        let Token { kind, .. } = self.current;
+        let Token { kind, span, .. } = self.current;
         match kind {
+            TokenKind::Echo => {
+                self.advance();
+                let expr = self.parse_expression(0)?;
+                Ok(NodeKind::Echo(expr).make(span).into())
+            }
             _ => self.parse_expression(0),
         }
     }

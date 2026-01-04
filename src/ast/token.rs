@@ -19,6 +19,7 @@ pub enum TokenKind {
     Slash,
     Star,
     StringLiteral,
+    Echo,
 }
 
 impl Display for TokenKind {

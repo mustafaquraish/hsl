@@ -46,6 +46,7 @@ impl TokenKind {
 #[derive(NamedVariant, Clone)]
 pub enum NodeKind {
     Block(Vec<Node>),
+    Echo(Box<Node>),
     UnaryOperation(Operator, Box<Node>),
     BinaryOperation(Operator, Box<Node>, Box<Node>),
     Identifier(String),
@@ -176,6 +177,9 @@ impl<'a> Display for NodeFormatter<'a> {
         match &node.kind {
             NodeKind::UnaryOperation(op, expr) => {
                 write!(f, "({}) {{\n{}\n}}", op.variant_name(), self.child(expr))?;
+            }
+            NodeKind::Echo(expr) => {
+                write!(f, "{{\n{}\n}}", self.child(expr))?;
             }
             NodeKind::BinaryOperation(op, lhs, rhs) => {
                 write!(
