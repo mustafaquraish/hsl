@@ -22,6 +22,7 @@ fn run_file(
     report_channel: &mut ReportChannel,
 ) -> Maybe<vm::Value> {
     let ast = Parser::new(filename, report_channel.get_sender())?.parse();
+    report_channel.check_reports_and_exit();
     dprintln!("{ast}");
 
     let mut chunk = {
@@ -48,6 +49,6 @@ fn main() {
         };
     }
     if ARGS.repl() || ARGS.input().is_none() {
-        Repl::new(&mut vm, &report_channel).start_loop();
+        Repl::new(&mut vm, &mut report_channel).start_loop();
     }
 }

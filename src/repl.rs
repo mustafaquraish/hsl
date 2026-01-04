@@ -1,6 +1,5 @@
 use std::io::{Write, stdin, stdout};
 
-use crate::ast::Node;
 use crate::ast::parser::Parser;
 use crate::dprintln;
 use crate::files::push_source;
@@ -18,12 +17,12 @@ pub enum ParseResult {
 
 pub struct Repl<'vm, 'channel> {
     vm: &'vm mut VM,
-    report_channel: &'channel ReportChannel,
+    report_channel: &'channel mut ReportChannel,
     input_counter: usize,
 }
 
 impl<'v, 'c> Repl<'v, 'c> {
-    pub fn new(vm: &'v mut VM, report_channel: &'c ReportChannel) -> Self {
+    pub fn new(vm: &'v mut VM, report_channel: &'c mut ReportChannel) -> Self {
         Self {
             vm,
             report_channel,
@@ -31,35 +30,8 @@ impl<'v, 'c> Repl<'v, 'c> {
         }
     }
 
-    fn try_parse(&self, cache_source: &'static str) -> Result<Box<Node>, ParseResult> {
-        let ast = Parser::new(cache_source, self.report_channel.get_sender())
-            .unwrap_reported()
-            .parse();
-
-        let mut parse_result = ParseResult::Ok;
-        for report in self.report_channel.receiver.try_iter() {
-            let this_result: ParseResult = if report.level < ReportLevel::Error {
-                ParseResult::Ok
-            } else if report.incomplete {
-                ParseResult::Incomplete
-            } else {
-                ReportChannel::display(*report.clone());
-                ParseResult::Error
-            };
-            if this_result > parse_result {
-                parse_result = this_result;
-            }
-        }
-
-        match parse_result {
-            ParseResult::Ok => Ok(ast),
-            _ => Err(parse_result),
-        }
-    }
-
     fn run(&mut self) -> Result<(), ()> {
         let mut input = String::new();
-        let mut last = String::new();
         let name = Box::leak(format!("<{:0>3}>", self.input_counter).into_boxed_str());
         self.input_counter += 1;
 
@@ -68,16 +40,45 @@ impl<'v, 'c> Repl<'v, 'c> {
             print!("{}", if input.is_empty() { ">>> " } else { "... " });
             stdout().flush().expect("Failed to flush stdout");
             stdin().read_line(&mut temp).expect("Failed to read line");
-            if temp.trim().is_empty() && last.trim().is_empty() {
-                return Ok(());
+            let force_complete = temp.trim().is_empty();
+
+            if !force_complete {
+                input.push_str(&temp)
             };
-            last = temp.clone();
-            input.push_str(&temp);
             push_source(name, input.clone());
-            match self.try_parse(name) {
-                Ok(ast) => break ast,
-                Err(ParseResult::Incomplete) => continue,
-                _ => return Err(()),
+
+            let ast = Parser::new(name, self.report_channel.get_sender())
+                .unwrap_reported()
+                .parse();
+
+            let mut parse_result = ParseResult::Ok;
+            for report in self.report_channel.receiver.try_iter() {
+                let this_result: ParseResult = if report.level < ReportLevel::Error {
+                    ParseResult::Ok
+                } else if report.incomplete {
+                    if force_complete {
+                        ReportChannel::display(*report.clone());
+                    }
+                    ParseResult::Incomplete
+                } else {
+                    ReportChannel::display(*report.clone());
+                    ParseResult::Error
+                };
+                if this_result > parse_result {
+                    parse_result = this_result;
+                }
+            }
+
+            match parse_result {
+                ParseResult::Ok => break ast,
+                ParseResult::Incomplete => {
+                    if force_complete {
+                        return Err(());
+                    } else {
+                        continue;
+                    }
+                }
+                ParseResult::Error => return Err(()),
             }
         };
         dprintln!("{ast}");
