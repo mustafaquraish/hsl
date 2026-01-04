@@ -6,7 +6,6 @@ use std::fmt::{Display, Formatter};
 #[derive(NamedVariant)]
 enum ValueReport {
     TypeError(String),
-    FloatError(String),
 }
 
 impl Display for ValueReport {
@@ -14,7 +13,6 @@ impl Display for ValueReport {
         write!(f, "{}", self.variant_name())?;
         match self {
             ValueReport::TypeError(msg) => write!(f, ": {}", msg),
-            ValueReport::FloatError(msg) => write!(f, ": {}", msg),
         }
     }
 }
@@ -140,12 +138,30 @@ impl Value {
         })
     }
 
+    pub fn modulo(&self, other: &Value) -> Maybe<Value> {
+        Ok(match (self, other) {
+            (Value::Integer(a), Value::Integer(b)) => Value::Float(*a as f64 % *b as f64),
+            (Value::Integer(a), Value::Float(b)) => Value::Float(*a as f64 % b),
+            (Value::Float(a), Value::Float(b)) => Value::Float(a % b),
+            (Value::Float(a), Value::Integer(b)) => Value::Float(a % *b as f64),
+            _ => {
+                return Err(ValueReport::TypeError(format!(
+                    "Cannot divide {} with {}",
+                    self.variant_name(),
+                    other.variant_name()
+                ))
+                .make()
+                .into());
+            }
+        })
+    }
+
     pub fn cmp(&self, other: &Value) -> Maybe<Ordering> {
         Ok(match (self, other) {
             (Value::Integer(a), Value::Integer(b)) => a.cmp(b),
             (Value::Float(a), Value::Float(b)) => {
                 return a.partial_cmp(b).ok_or_else(|| {
-                    ValueReport::FloatError(format!("Cannot compare {} with {}", a, b))
+                    ValueReport::TypeError(format!("Cannot compare {} with {}", a, b))
                         .make()
                         .into()
                 });
@@ -197,6 +213,20 @@ impl Value {
                     "Cannot or {} with {}",
                     self.variant_name(),
                     other.variant_name()
+                ))
+                .make()
+                .into());
+            }
+        })
+    }
+
+    pub fn bool(&self) -> Maybe<bool> {
+        Ok(match self {
+            Value::Boolean(value) => *value,
+            _ => {
+                return Err(ValueReport::TypeError(format!(
+                    "Expected boolean but got {}",
+                    self.variant_name()
                 ))
                 .make()
                 .into());
