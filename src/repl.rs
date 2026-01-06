@@ -30,7 +30,7 @@ impl<'v, 'c> Repl<'v, 'c> {
         }
     }
 
-    fn run(&mut self) -> Result<(), ()> {
+    fn run(&mut self) {
         let mut input = String::new();
         let name = Box::leak(format!("<{:0>3}>", self.input_counter).into_boxed_str());
         self.input_counter += 1;
@@ -73,12 +73,12 @@ impl<'v, 'c> Repl<'v, 'c> {
                 ParseResult::Ok => break ast,
                 ParseResult::Incomplete => {
                     if force_complete {
-                        return Err(());
+                        return;
                     } else {
                         continue;
                     }
                 }
-                ParseResult::Error => return Err(()),
+                ParseResult::Error => return,
             }
         };
         dprintln!("{ast}");
@@ -103,7 +103,6 @@ impl<'v, 'c> Repl<'v, 'c> {
                 println!("{val:?}");
             }
         }
-        Ok(())
     }
 
     pub fn start_loop(&mut self) {
@@ -112,7 +111,8 @@ impl<'v, 'c> Repl<'v, 'c> {
             env!("CARGO_PKG_VERSION")
         );
         loop {
-            self.run().ok(); // Discarding error
+            self.run();
+            self.vm.dump_stack();
         }
     }
 }
