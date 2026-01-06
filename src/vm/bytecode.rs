@@ -20,7 +20,7 @@ pub enum OpCode {
     Loop = 0x0c,        // Next u16 represents offset
 
     // 0x10-0x1f Constants
-    ReadConst = 0x10,   // Next u8 represents an i8
+    ReadConst = 0x10,   // Next i8 represents value
     LoadConst8 = 0x11,  // Next u8 represents an index
     LoadConst16 = 0x12, // Next u16 represents an index
     Nada = 0x1a,
