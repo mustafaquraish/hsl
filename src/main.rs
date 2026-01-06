@@ -31,7 +31,9 @@ fn run_file(
         compiler.chunk
     };
 
-    vm.run(&mut chunk)
+    let v = vm.run(&mut chunk);
+    vm.dump_stack();
+    v
 }
 
 fn main() {

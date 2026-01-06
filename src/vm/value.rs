@@ -28,7 +28,7 @@ impl ReportKind for ValueReport {
 }
 
 #[repr(u8)]
-#[derive(NamedVariant, PartialEq, Clone)]
+#[derive(NamedVariant, Clone)]
 pub enum Value {
     Integer(isize),
     Float(f64),
@@ -63,202 +63,226 @@ impl std::fmt::Debug for Value {
     }
 }
 
+macro_rules! binary_operand_error {
+    ($operand:expr, $lhs:expr, $rhs:expr) => {
+        ValueReport::TypeError(format!(
+            "Invalid types for operand {}: {} and {}",
+            $operand,
+            $lhs.variant_name(),
+            $rhs.variant_name()
+        ))
+        .make()
+        .into()
+    };
+}
+
+macro_rules! unary_operand_error {
+    ($operand:expr, $val:expr) => {
+        ValueReport::TypeError(format!(
+            "Invalid type for operand {}: {}",
+            $operand,
+            $val.variant_name(),
+        ))
+        .make()
+        .into()
+    };
+}
+
 impl Value {
-    pub fn add(&self, other: &Value) -> Maybe<Value> {
+    pub fn add(&self, other: &Self) -> Maybe<Self> {
         Ok(match (self, other) {
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a + b),
             (Value::Integer(a), Value::Float(b)) => Value::Float(*a as f64 + b),
             (Value::Float(a), Value::Float(b)) => Value::Float(a + b),
             (Value::Float(a), Value::Integer(b)) => Value::Float(a + *b as f64),
             (Value::String(a), Value::String(b)) => Value::String(format!("{}{}", a, b)),
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot add {} with {}",
-                    self.variant_name(),
-                    other.variant_name()
-                ))
-                .make()
-                .into());
-            }
+            _ => return Err(binary_operand_error!("+", self, other)),
         })
     }
 
-    pub fn sub(&self, other: &Value) -> Maybe<Value> {
+    pub fn sub(&self, other: &Self) -> Maybe<Self> {
         Ok(match (self, other) {
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a - b),
             (Value::Integer(a), Value::Float(b)) => Value::Float(*a as f64 - b),
             (Value::Float(a), Value::Float(b)) => Value::Float(a - b),
             (Value::Float(a), Value::Integer(b)) => Value::Float(a - *b as f64),
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot subtract {} with {}",
-                    self.variant_name(),
-                    other.variant_name()
-                ))
-                .make()
-                .into());
-            }
+            _ => return Err(binary_operand_error!("-", self, other)),
         })
     }
 
-    pub fn mul(&self, other: &Value) -> Maybe<Value> {
+    pub fn mul(&self, other: &Self) -> Maybe<Self> {
         Ok(match (self, other) {
             (Value::Integer(a), Value::Integer(b)) => Value::Integer(a * b),
             (Value::Integer(a), Value::Float(b)) => Value::Float(*a as f64 * b),
             (Value::Float(a), Value::Float(b)) => Value::Float(a * b),
             (Value::Float(a), Value::Integer(b)) => Value::Float(a * *b as f64),
             (Value::String(a), Value::Integer(b)) => Value::String(a.repeat(*b as usize)),
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot multiply {} with {}",
-                    self.variant_name(),
-                    other.variant_name()
-                ))
-                .make()
-                .into());
-            }
+            _ => return Err(binary_operand_error!("*", self, other)),
         })
     }
 
-    pub fn div(&self, other: &Value) -> Maybe<Value> {
+    pub fn pow(&self, other: &Self) -> Maybe<Self> {
+        Ok(match (&self, &other) {
+            (Value::Integer(a), Value::Integer(b)) => Value::Float((*a as f64).powi(*b as i32)),
+            (Value::Integer(a), Value::Float(b)) => Value::Float((*a as f64).powf(*b)),
+            (Value::Float(a), Value::Float(b)) => Value::Float(a.powf(*b)),
+            (Value::Float(a), Value::Integer(b)) => Value::Float(a.powi(*b as i32)),
+            _ => return Err(binary_operand_error!("**", self, other)),
+        })
+    }
+
+    pub fn div(&self, other: &Self) -> Maybe<Self> {
         Ok(match (self, other) {
             (Value::Integer(a), Value::Integer(b)) => Value::Float(*a as f64 / *b as f64),
             (Value::Integer(a), Value::Float(b)) => Value::Float(*a as f64 / b),
             (Value::Float(a), Value::Float(b)) => Value::Float(a / b),
             (Value::Float(a), Value::Integer(b)) => Value::Float(a / *b as f64),
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot divide {} with {}",
-                    self.variant_name(),
-                    other.variant_name()
-                ))
-                .make()
-                .into());
-            }
+            _ => return Err(binary_operand_error!("/", self, other)),
         })
     }
 
-    pub fn modulo(&self, other: &Value) -> Maybe<Value> {
+    pub fn modulo(&self, other: &Self) -> Maybe<Self> {
         Ok(match (self, other) {
             (Value::Integer(a), Value::Integer(b)) => Value::Float(*a as f64 % *b as f64),
             (Value::Integer(a), Value::Float(b)) => Value::Float(*a as f64 % b),
             (Value::Float(a), Value::Float(b)) => Value::Float(a % b),
             (Value::Float(a), Value::Integer(b)) => Value::Float(a % *b as f64),
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot divide {} with {}",
-                    self.variant_name(),
-                    other.variant_name()
-                ))
-                .make()
-                .into());
-            }
+            _ => return Err(binary_operand_error!("%", self, other)),
         })
     }
 
-    pub fn cmp(&self, other: &Value) -> Maybe<Ordering> {
-        Ok(match (self, other) {
-            (Value::Integer(a), Value::Integer(b)) => a.cmp(b),
-            (Value::Float(a), Value::Float(b)) => {
-                return a.partial_cmp(b).ok_or_else(|| {
-                    ValueReport::TypeError(format!("Cannot compare {} with {}", a, b))
-                        .make()
-                        .into()
-                });
-            }
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot compare {} with {}",
-                    self.variant_name(),
-                    other.variant_name()
-                ))
-                .make()
-                .into());
-            }
-        })
-    }
-
-    pub fn equals(&self, other: &Value) -> Maybe<Value> {
+    pub fn equal(&self, other: &Self) -> Maybe<Self> {
         Ok(Value::Boolean(self.eq(other)))
     }
 
-    pub fn gt(&self, other: &Value) -> Maybe<Value> {
-        Ok(Value::Boolean(self.cmp(other)?.eq(&Ordering::Greater)))
+    pub fn not_equal(&self, other: &Self) -> Maybe<Self> {
+        Ok(Value::Boolean(self.ne(other)))
     }
 
-    pub fn lt(&self, other: &Value) -> Maybe<Value> {
-        Ok(Value::Boolean(self.cmp(other)?.eq(&Ordering::Less)))
+    pub fn less(&self, other: &Self) -> Maybe<Self> {
+        match self.partial_cmp(other) {
+            Some(ordering) => Ok(Value::Boolean(ordering == Ordering::Less)),
+            None => Err(binary_operand_error!("<", self, other)),
+        }
     }
 
-    pub fn and(&self, other: &Value) -> Maybe<Value> {
+    pub fn less_equal(&self, other: &Self) -> Maybe<Self> {
+        match self.partial_cmp(other) {
+            Some(ordering) => Ok(Value::Boolean(matches!(
+                ordering,
+                Ordering::Less | Ordering::Equal
+            ))),
+            None => Err(binary_operand_error!("<", self, other)),
+        }
+    }
+
+    pub fn greater(&self, other: &Self) -> Maybe<Self> {
+        other.less(self)
+    }
+
+    pub fn greater_equal(&self, other: &Self) -> Maybe<Self> {
+        other.less_equal(self)
+    }
+
+    pub fn bit_and(&self, other: &Self) -> Maybe<Self> {
         Ok(match (self, other) {
-            (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(*a && *b),
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot and {} with {}",
-                    self.variant_name(),
-                    other.variant_name()
-                ))
-                .make()
-                .into());
-            }
+            (Value::Integer(a), Value::Integer(b)) => Value::Integer(*a & *b),
+            _ => return Err(binary_operand_error!("&", self, other)),
         })
     }
 
-    pub fn or(&self, other: &Value) -> Maybe<Value> {
+    pub fn bit_or(&self, other: &Self) -> Maybe<Self> {
         Ok(match (self, other) {
-            (Value::Boolean(a), Value::Boolean(b)) => Value::Boolean(*a || *b),
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot or {} with {}",
-                    self.variant_name(),
-                    other.variant_name()
-                ))
-                .make()
-                .into());
-            }
+            (Value::Integer(a), Value::Integer(b)) => Value::Integer(*a | *b),
+            _ => return Err(binary_operand_error!("|", self, other)),
         })
     }
 
-    pub fn bool(&self) -> Maybe<bool> {
-        Ok(match self {
-            Value::Boolean(value) => *value,
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Expected boolean but got {}",
-                    self.variant_name()
-                ))
-                .make()
-                .into());
-            }
+    pub fn bit_xor(&self, other: &Self) -> Maybe<Self> {
+        Ok(match (self, other) {
+            (Value::Integer(a), Value::Integer(b)) => Value::Integer(*a ^ *b),
+            _ => return Err(binary_operand_error!("^", self, other)),
         })
     }
 
-    pub fn not(&self) -> Maybe<Value> {
+    pub fn shift_left(&self, other: &Self) -> Maybe<Self> {
+        Ok(match (self, other) {
+            (Value::Integer(a), Value::Integer(b)) => Value::Integer(*a << *b),
+            _ => return Err(binary_operand_error!("<<", self, other)),
+        })
+    }
+
+    pub fn shift_right(&self, other: &Self) -> Maybe<Self> {
+        Ok(match (self, other) {
+            (Value::Integer(a), Value::Integer(b)) => Value::Integer(*a >> *b),
+            _ => return Err(binary_operand_error!(">>", self, other)),
+        })
+    }
+
+    pub fn or(&self, other: &Self) -> Maybe<Self> {
+        Ok(Value::Boolean(self.as_bool()? || other.as_bool()?))
+    }
+
+    pub fn and(&self, other: &Self) -> Maybe<Self> {
+        Ok(Value::Boolean(self.as_bool()? && other.as_bool()?))
+    }
+
+    pub fn not(&self) -> Maybe<Self> {
         Ok(match self {
+            Value::Integer(value) => Value::Integer(!*value),
             Value::Boolean(value) => Value::Boolean(!*value),
-            _ => {
-                return Err(
-                    ValueReport::TypeError(format!("Cannot not {}", self.variant_name()))
-                        .make()
-                        .into(),
-                );
-            }
+            _ => return Err(unary_operand_error!("!", self)),
         })
     }
 
-    pub fn negate(&self) -> Maybe<Value> {
+    pub fn negate(&self) -> Maybe<Self> {
         Ok(match self {
             Value::Integer(value) => Value::Integer(-*value),
             Value::Float(value) => Value::Float(-*value),
-            _ => {
-                return Err(ValueReport::TypeError(format!(
-                    "Cannot negate {}",
-                    self.variant_name()
-                ))
-                .make()
-                .into());
-            }
+            _ => return Err(unary_operand_error!("-", self)),
         })
+    }
+
+    pub fn as_bool(&self) -> Maybe<bool> {
+        Ok(match self {
+            Value::Integer(val) => *val != 0,
+            Value::Float(val) => *val != 0f64,
+            Value::Boolean(val) => *val,
+            Value::String(val) => !val.is_empty(),
+            Value::Nada => false,
+            // _ => {
+            //     return Err(ValueReport::TypeError(format!(
+            //         "Cannot coerce {} into boolean.",
+            //         self.variant_name()
+            //     ))
+            //     .make()
+            //     .into());
+            // }
+        })
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (&self, &other) {
+            (Value::Integer(lhs), Value::Integer(rhs)) => lhs.eq(rhs),
+            (Value::Integer(lhs), Value::Float(rhs)) => (*lhs as f64).eq(rhs),
+            (Value::Float(lhs), Value::Float(rhs)) => lhs.eq(rhs),
+            (Value::Float(lhs), Value::Integer(rhs)) => lhs.eq(&(*rhs as f64)),
+            (Value::String(lhs), Value::String(rhs)) => lhs.eq(rhs),
+            (_, _) => false,
+        }
+    }
+}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Value::Integer(lhs), Value::Integer(rhs)) => Some(lhs.cmp(rhs)),
+            (Value::Integer(lhs), Value::Float(rhs)) => (*lhs as f64).partial_cmp(rhs),
+            (Value::Float(lhs), Value::Float(rhs)) => lhs.partial_cmp(rhs),
+            (Value::Float(lhs), Value::Integer(rhs)) => lhs.partial_cmp(&(*rhs as f64)),
+            (_, _) => None,
+        }
     }
 }

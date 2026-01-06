@@ -2,6 +2,7 @@ mod bytecode;
 mod compiler;
 mod value;
 
+use crate::dprintln;
 use crate::report::{Maybe, ReportKind, ReportLevel};
 pub use crate::vm::bytecode::{Chunk, OpCode};
 pub use crate::vm::compiler::Compiler;
@@ -32,6 +33,10 @@ impl VM {
         }
     }
 
+    pub fn dump_stack(&self) {
+        dprintln!("{:#?}", self.stack);
+    }
+
     pub fn run(&mut self, chunk: &mut Chunk) -> Maybe<Value> {
         self.ip = 0;
         while self.ip < chunk.source.len() {
@@ -40,13 +45,15 @@ impl VM {
             }
             let op = chunk.read_op(&mut self.ip);
             match op {
+                OpCode::Nop => (),
                 OpCode::Stop => {
-                    return Ok(self.stack.pop().unwrap_or(Value::Nada));
+                    let code = chunk.read_u8(&mut self.ip);
+                    std::process::exit(code as i32);
                 }
                 _ => self.run_op(chunk, op)?,
             };
         }
-        Ok(Value::Nada)
+        Ok(self.stack.pop().unwrap_or(Value::Nada))
     }
 
     pub fn run_op(&mut self, chunk: &mut Chunk, op: OpCode) -> Maybe<()> {
@@ -66,8 +73,12 @@ impl VM {
         }
 
         match op {
+            OpCode::Nop | OpCode::Stop => unreachable!(),
             OpCode::Echo => {
                 println!("{}", self.stack.pop().unwrap());
+            }
+            OpCode::ErrEcho => {
+                eprintln!("{}", self.stack.pop().unwrap());
             }
             OpCode::Pop => {
                 self.stack.pop().unwrap();
@@ -88,7 +99,7 @@ impl VM {
             OpCode::JumpIfFalse => {
                 let offset = chunk.read_u16(&mut self.ip);
                 let val = self.stack.pop().unwrap();
-                if val.not()?.bool()? {
+                if !val.as_bool()? {
                     self.ip += offset as usize;
                 }
             }
@@ -119,8 +130,25 @@ impl VM {
             OpCode::Mul => binary!(Value::mul),
             OpCode::Div => binary!(Value::div),
             OpCode::Mod => binary!(Value::modulo),
+            OpCode::Pow => binary!(Value::pow),
             OpCode::Neg => unary!(Value::negate),
-            _ => unimplemented!(),
+
+            OpCode::BitAnd => binary!(Value::bit_and),
+            OpCode::BitOr => binary!(Value::bit_or),
+            OpCode::BitXor => binary!(Value::bit_xor),
+            OpCode::ShiftLeft => binary!(Value::shift_left),
+            OpCode::ShiftRight => binary!(Value::shift_right),
+
+            OpCode::Equal => binary!(Value::equal),
+            OpCode::NotEqual => binary!(Value::not_equal),
+            OpCode::Greater => binary!(Value::greater),
+            OpCode::GreaterEqual => binary!(Value::greater_equal),
+            OpCode::Less => binary!(Value::less),
+            OpCode::LessEqual => binary!(Value::less_equal),
+
+            OpCode::Not => unary!(Value::not),
+            OpCode::Or => binary!(Value::or),
+            OpCode::And => binary!(Value::and),
         };
         Ok(())
     }

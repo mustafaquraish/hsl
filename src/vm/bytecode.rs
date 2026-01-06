@@ -6,13 +6,15 @@ use name_variant::NamedVariant;
 #[derive(IntEnum, NamedVariant, Debug, Copy, Clone)]
 pub enum OpCode {
     // 0x00-0x01 VM Control
-    Stop = 0x00,
-    Echo = 0x01,
+    Stop = 0x00, // Next u8 represents exit code
+    Nop = 0x02,
+    Echo = 0x03,
+    ErrEcho = 0x04,
 
-    // 0x02-0x09 Stack
-    Pop = 0x02,
-    Dup = 0x03,
-    Swap = 0x04,
+    // 0x05-0x09 Stack
+    Pop = 0x05,
+    Dup = 0x06,
+    Swap = 0x07,
 
     // 0x0a-0x0f Control Flow
     Jump = 0x0a,        // Next u16 represents offset
@@ -38,24 +40,28 @@ pub enum OpCode {
     Sub = 0x31,
     Mul = 0x32,
     Div = 0x33,
-    Mod = 0x34,
-    Neg = 0x35,
-    // 0x40-0x4f Bitwise
-    // BitAnd = 0x40,
-    // BitOr = 0x41,
-    // BitXor = 0x42,
-    // BitNot = 0x43,
-    // ShiftLeft = 0x44,
-    // ShiftRight = 0x45,
+    Pow = 0x34,
+    Mod = 0x35,
+    Neg = 0x36,
 
-    // 0x50-0x5f Comparison & Logic
-    // Equal = 0x50,
-    // NotEqual = 0x51,
-    // Greater = 0x52,
-    // GreaterEqual = 0x53,
-    // Less = 0x54,
-    // LessEqual = 0x55,
-    // Not = 0x56, // Logical NOT
+    // 0x40-0x4f Bitwise
+    BitAnd = 0x40,
+    BitOr = 0x41,
+    BitXor = 0x42,
+    ShiftLeft = 0x44,
+    ShiftRight = 0x45,
+
+    // 0x50-0x59 Comparison
+    Equal = 0x50,
+    NotEqual = 0x51,
+    Greater = 0x52,
+    GreaterEqual = 0x53,
+    Less = 0x54,
+    LessEqual = 0x55,
+    // 0x5a-0x5f Logic
+    Not = 0x5a,
+    Or = 0x5b,
+    And = 0x5c,
 }
 
 pub struct Chunk {
@@ -171,6 +177,10 @@ impl Chunk {
         print!("{:03} | {:#04x} {:12}", idx, op as usize, op.variant_name());
 
         match op {
+            OpCode::Stop => {
+                let code = self.read_u8(offset);
+                println!(" {:#04x}", code);
+            }
             OpCode::ReadConst => {
                 let val = self.read_u8(offset) as i8;
                 println!(" {:#04x} ({val})", val);

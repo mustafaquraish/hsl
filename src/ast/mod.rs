@@ -10,29 +10,76 @@ pub mod token;
 
 #[derive(NamedVariant, Copy, Clone)]
 pub enum Operator {
-    Plus,
-    Minus,
-    Star,
-    Slash,
-    Mod,
+    ShiftLeft,
+    ShiftRight,
+    BitwiseOr,
+    BitwiseAnd,
+    BitwiseXor,
+    UnaryPlus,
+    UnaryMinus,
+    Add,
+    And,
+    Assign,
+    Divide,
+    Equal,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+    Modulo,
+    Multiply,
+    Not,
+    NotEqual,
+    Or,
+    Power,
+    Subtract,
+}
+
+impl Debug for Operator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self.variant_name())
+    }
 }
 
 impl TokenKind {
     pub fn as_prefix(self) -> Option<(Operator, (), u8)> {
         Some(match self {
-            TokenKind::Plus => (Operator::Plus, (), 1),
-            TokenKind::Minus => (Operator::Minus, (), 1),
+            TokenKind::Bang => (Operator::Not, (), 1),
+            TokenKind::Plus => (Operator::UnaryPlus, (), 2),
+            TokenKind::Minus => (Operator::UnaryMinus, (), 2),
             _ => return None,
         })
     }
 
     pub fn as_infix(self) -> Option<(Operator, u8, u8)> {
         Some(match self {
-            TokenKind::Plus => (Operator::Plus, 11, 12),
-            TokenKind::Minus => (Operator::Minus, 11, 12),
-            TokenKind::Star => (Operator::Star, 12, 13),
-            TokenKind::Slash => (Operator::Slash, 12, 13),
-            TokenKind::Percent => (Operator::Mod, 12, 13),
+            // Lower Precedence
+            TokenKind::Equals => (Operator::Assign, 2, 1),
+
+            TokenKind::Or => (Operator::Or, 3, 4),
+            TokenKind::And => (Operator::And, 4, 5),
+
+            TokenKind::EqualsEquals => (Operator::Equal, 3, 4),
+            TokenKind::BangEquals => (Operator::NotEqual, 3, 4),
+            TokenKind::Greater => (Operator::Greater, 3, 4),
+            TokenKind::GreaterEquals => (Operator::GreaterEqual, 3, 4),
+            TokenKind::Less => (Operator::Less, 3, 4),
+            TokenKind::LessEquals => (Operator::LessEqual, 3, 4),
+
+            TokenKind::Pipe => (Operator::BitwiseOr, 4, 5),
+            TokenKind::Caret => (Operator::BitwiseXor, 5, 6),
+            TokenKind::Ampersand => (Operator::BitwiseAnd, 6, 7),
+            TokenKind::LessLess => (Operator::ShiftLeft, 7, 8),
+            TokenKind::GreaterGreater => (Operator::ShiftRight, 7, 8),
+
+            TokenKind::Plus => (Operator::Add, 8, 9),
+            TokenKind::Minus => (Operator::Subtract, 8, 9),
+            TokenKind::Star => (Operator::Multiply, 9, 10),
+            TokenKind::Slash => (Operator::Divide, 9, 10),
+            TokenKind::Percent => (Operator::Modulo, 9, 10),
+
+            TokenKind::StarStar => (Operator::Power, 19, 18),
+            // Higher Precedence
             _ => return None,
         })
     }
@@ -49,6 +96,7 @@ impl TokenKind {
 pub enum NodeKind {
     Block(Vec<Node>),
     Echo(Box<Node>),
+    Assert(Box<Node>, String),
     UnaryOperation(Operator, Box<Node>),
     BinaryOperation(Operator, Box<Node>, Box<Node>),
     Identifier(String),
@@ -60,7 +108,12 @@ pub enum NodeKind {
 
 impl NodeKind {
     pub fn make(self, span: Span) -> Node {
-        Node { kind: self, span }
+        Node {
+            kind: self,
+            span,
+            expr: false,
+            expr_stmt: false,
+        }
     }
 }
 
@@ -68,6 +121,8 @@ impl NodeKind {
 pub struct Node {
     pub kind: NodeKind,
     pub span: Span,
+    pub expr: bool,
+    pub expr_stmt: bool,
 }
 
 impl Display for Node {
@@ -182,6 +237,9 @@ impl<'a> Display for NodeFormatter<'a> {
             }
             NodeKind::Echo(expr) => {
                 write!(f, "{{\n{}\n}}", self.child(expr))?;
+            }
+            NodeKind::Assert(expr, message) => {
+                write!(f, "{{\n{}\n{}\n}}", self.child(expr), message)?;
             }
             NodeKind::BinaryOperation(op, lhs, rhs) => {
                 write!(

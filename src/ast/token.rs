@@ -3,6 +3,21 @@ use std::fmt::{Debug, Display, Formatter};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TokenKind {
+    Comma,
+    Or,
+    And,
+    Bang,
+    BangEquals,
+    Greater,
+    GreaterEquals,
+    GreaterGreater,
+    LessLess,
+    Ampersand,
+    Caret,
+    Pipe,
+    Assert,
+    LessEquals,
+    Less,
     BooleanLiteral,
     EOF,
     FloatLiteral,
@@ -22,6 +37,7 @@ pub enum TokenKind {
     Equals,
     EqualsEquals,
     StringLiteral,
+    StarStar,
     Echo,
 }
 

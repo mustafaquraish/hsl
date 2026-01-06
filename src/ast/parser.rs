@@ -90,7 +90,7 @@ impl<'contents> Parser<'contents> {
         }
     }
 
-    fn sync<F: Fn(Token) -> bool>(&mut self, predicate: F) {
+    fn synchronize<F: Fn(Token) -> bool>(&mut self, predicate: F) {
         self.skip_until(|token| /* Is it a new statement? */ matches!(token.kind,
                 // This is where we will check for known statement beginners
                 TokenKind::Semicolon
@@ -127,25 +127,20 @@ impl<'contents> Parser<'contents> {
         }
     }
 
-    // fn consume_line(&mut self) -> Maybe<()> {
-    //     match self.current {
-    //         Token {
-    //             kind: TokenKind::Semicolon,
-    //             ..
-    //         } => self.advance(),
-    //         Token {
-    //             kind: TokenKind::EOF,
-    //             ..
-    //         } => (),
-    //         token if token.newline_before => (),
-    //         token => {
-    //             return Err(UnexpectedToken(token.kind)
-    //                 .make_labeled(token.span.labeled("Expected end of statement"))
-    //                 .into());
-    //         }
-    //     }
-    //     Ok(())
-    // }
+    fn consume_line(&mut self) -> Maybe<()> {
+        match self.current {
+            Token {
+                kind: TokenKind::Semicolon,
+                ..
+            } => self.advance(),
+            token => {
+                return Err(UnexpectedToken(token.kind)
+                    .make_labeled(token.span.labeled("Expected end of statement"))
+                    .into());
+            }
+        }
+        Ok(())
+    }
 
     fn consume_line_or(&mut self, expect: TokenKind) -> Maybe<()> {
         match self.current {
@@ -188,38 +183,73 @@ impl<'contents> Parser<'contents> {
 
     fn parse_block(&mut self, start: Span, closer: TokenKind) -> Maybe<Box<Node>> {
         let mut stmts = Vec::new();
-        let sync = |s: &mut Parser| s.sync(|token| token.kind == closer);
+        macro_rules! sync {
+            ($error:expr) => {{
+                self.report($error.finish().into());
+                self.synchronize(|token| token.kind == closer);
+            }};
+        }
 
         while self.current.kind != closer && self.current.kind != TokenKind::EOF {
             match self.parse_statement() {
-                Ok(stmt) => match self.consume_line_or(closer) {
+                Ok(mut stmt) if stmt.expr_stmt && self.current.kind.eq(&closer) => {
+                    stmt.expr_stmt = false;
+                    stmts.push(*stmt)
+                }
+                Ok(stmt) if stmt.expr_stmt => match self.consume_line() {
                     Ok(_) => stmts.push(*stmt),
                     Err(e) => {
-                        self.report(e.finish().into());
-                        sync(self);
+                        sync!(e.with_help("Express statements must have a trailing semicolon unless they are the last statement in the block."))
                     }
                 },
-                Err(e) => {
-                    self.report(e.finish().into());
-                    sync(self);
-                }
+                Ok(stmt) => match self.consume_line_or(closer) {
+                    Ok(_) => stmts.push(*stmt),
+                    Err(e) => sync!(e),
+                },
+                Err(e) => sync!(e),
             }
         }
         let end = self.consume_one(closer)?.span;
-
         Ok(NodeKind::Block(stmts).make(start.extend(end)).into())
     }
 
     fn parse_statement(&mut self) -> Maybe<Box<Node>> {
         let Token { kind, span, .. } = self.current;
-        match kind {
+        let stmt = match kind {
             TokenKind::Echo => {
                 self.advance();
                 let expr = self.parse_expression(0)?;
                 Ok(NodeKind::Echo(expr).make(span).into())
             }
-            _ => self.parse_expression(0),
-        }
+            TokenKind::Assert => {
+                self.advance();
+                let expr = self.parse_expression(0)?;
+                let message = if self.current.kind == TokenKind::Comma {
+                    self.advance();
+                    let message = self.parse_expression(0)?;
+                    match message.kind {
+                        NodeKind::StringLiteral(s) => s,
+                        _ => {
+                            return Err(SyntaxError(
+                                "Assertion message must be a string".to_string(),
+                            )
+                            .make()
+                            .into());
+                        }
+                    }
+                } else {
+                    "Assertion failed.".to_string()
+                };
+                Ok(NodeKind::Assert(expr, message).make(span).into())
+            }
+            _ => {
+                let mut expr = self.parse_expression(0)?;
+                expr.expr_stmt = true;
+                return Ok(expr);
+            }
+        };
+        self.consume_line_or(TokenKind::EOF)?;
+        stmt
     }
 
     fn parse_expression(&mut self, min_bp: u8) -> Maybe<Box<Node>> {
@@ -254,6 +284,7 @@ impl<'contents> Parser<'contents> {
             let span = lhs.span.extend(rhs.span);
             lhs = NodeKind::BinaryOperation(op, lhs, rhs).make(span).into();
         }
+        lhs.expr = true;
         Ok(lhs)
     }
 

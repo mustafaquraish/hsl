@@ -157,6 +157,9 @@ impl<'contents> Lexer<'contents> {
                     let kind = match self.slice(start, self.current_index) {
                         "True" | "False" => TokenKind::BooleanLiteral,
                         "echo" => TokenKind::Echo,
+                        "or" => TokenKind::Or,
+                        "and" => TokenKind::And,
+                        "assert" => TokenKind::Assert,
                         _ => TokenKind::Identifier,
                     };
                     self.make_simple(start, kind)
@@ -239,29 +242,38 @@ impl<'contents> Lexer<'contents> {
                     }
                     _ => self.make_advance(start, 1, TokenKind::Slash),
                 },
+                ';' => self.make_advance(start, 1, TokenKind::Semicolon),
                 '+' => self.make_advance(start, 1, TokenKind::Plus),
                 '-' => self.make_advance(start, 1, TokenKind::Minus),
-                '*' => self.make_advance(start, 1, TokenKind::Star),
                 '%' => self.make_advance(start, 1, TokenKind::Percent),
                 '(' => self.make_advance(start, 1, TokenKind::LeftParen),
                 ')' => self.make_advance(start, 1, TokenKind::RightParen),
-                ';' => self.make_advance(start, 1, TokenKind::Semicolon),
+                '&' => self.make_advance(start, 1, TokenKind::Ampersand),
+                '^' => self.make_advance(start, 1, TokenKind::Caret),
+                '|' => self.make_advance(start, 1, TokenKind::Pipe),
+                ',' => self.make_advance(start, 1, TokenKind::Comma),
+                '*' => match self.peek_char() {
+                    Some('*') => self.make_advance(start, 2, TokenKind::StarStar),
+                    _ => self.make_advance(start, 1, TokenKind::Star),
+                },
                 '=' => match self.peek_char() {
                     Some('=') => self.make_advance(start, 2, TokenKind::EqualsEquals),
                     _ => self.make_advance(start, 1, TokenKind::Equals),
                 },
-                // '>' => match self.peek_char() {
-                //     Some('=') => self.make_advance(start, 2, TokenKind::GreaterThanEquals),
-                //     _ => self.make_advance(start, 1, TokenKind::GreaterThan),
-                // },
-                // '<' => match self.peek_char() {
-                //     Some('=') => self.make_advance(start, 2, TokenKind::LessThanEquals),
-                //     _ => self.make_advance(start, 1, TokenKind::LessThan),
-                // },
-                // '!' => match self.peek_char() {
-                //     Some('=') => self.make_advance(start, 2, TokenKind::BangEquals),
-                //     _ => self.make_advance(start, 1, TokenKind::Bang),
-                // },
+                '>' => match self.peek_char() {
+                    Some('=') => self.make_advance(start, 2, TokenKind::GreaterEquals),
+                    Some('>') => self.make_advance(start, 2, TokenKind::GreaterGreater),
+                    _ => self.make_advance(start, 1, TokenKind::Greater),
+                },
+                '<' => match self.peek_char() {
+                    Some('=') => self.make_advance(start, 2, TokenKind::LessEquals),
+                    Some('<') => self.make_advance(start, 2, TokenKind::LessLess),
+                    _ => self.make_advance(start, 1, TokenKind::Less),
+                },
+                '!' => match self.peek_char() {
+                    Some('=') => self.make_advance(start, 2, TokenKind::BangEquals),
+                    _ => self.make_advance(start, 1, TokenKind::Bang),
+                },
                 _ => self.unexpected(char, start),
             };
         }
