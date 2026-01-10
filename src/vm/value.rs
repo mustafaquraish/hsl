@@ -172,16 +172,20 @@ impl Value {
                 ordering,
                 Ordering::Less | Ordering::Equal
             ))),
-            None => Err(binary_operand_error!("<", self, other)),
+            None => Err(binary_operand_error!("<=", self, other)),
         }
     }
 
     pub fn greater(&self, other: &Self) -> Maybe<Self> {
-        other.less(self)
+        other
+            .less(self)
+            .map_err(|_| binary_operand_error!(">", self, other))
     }
 
     pub fn greater_equal(&self, other: &Self) -> Maybe<Self> {
-        other.less_equal(self)
+        other
+            .less_equal(self)
+            .map_err(|_| binary_operand_error!(">=", self, other))
     }
 
     pub fn bit_and(&self, other: &Self) -> Maybe<Self> {
