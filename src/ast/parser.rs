@@ -210,7 +210,10 @@ impl<'contents> Parser<'contents> {
             }
         }
         let end = self.consume_one(closer)?.span;
-        Ok(NodeKind::Block(stmts).make(start.extend(end)).into())
+        let expr_stmt = stmts.last().map_or(false, |stmt| stmt.expr_stmt);
+        let mut block = NodeKind::Block(stmts).make(start.extend(end));
+        block.expr_stmt = expr_stmt;
+        Ok(block.into())
     }
 
     fn parse_statement(&mut self) -> Maybe<Box<Node>> {
@@ -218,7 +221,9 @@ impl<'contents> Parser<'contents> {
         let stmt = match kind {
             TokenKind::If => {
                 self.advance();
+                self.consume_one(TokenKind::LeftParen)?;
                 let condition = self.parse_expression(0)?;
+                self.consume_one(TokenKind::RightParen)?;
                 let block_start = self.consume_one(TokenKind::LeftBrace)?.span;
                 let then_block = self.parse_block(block_start, TokenKind::RightBrace)?;
                 let else_block = if self.current.kind == TokenKind::Else {
@@ -278,7 +283,9 @@ impl<'contents> Parser<'contents> {
             }
             _ => {
                 let mut expr = self.parse_expression(0)?;
-                expr.expr_stmt = true;
+                if !matches![expr.kind, NodeKind::Block(_)] {
+                    expr.expr_stmt = true;
+                }
                 return Ok(expr);
             }
         };
