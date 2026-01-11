@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::vm::value::Value;
+use crate::vm::Value;
 use int_enum::IntEnum;
 use name_variant::NamedVariant;
 

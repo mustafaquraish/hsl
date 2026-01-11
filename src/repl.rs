@@ -1,10 +1,10 @@
-use std::io::{Write, stdin, stdout};
-
 use crate::ast::parser::Parser;
+use crate::compiler::Compiler;
 use crate::dprintln;
 use crate::files::push_source;
 use crate::report::{ExitStatus, ReportChannel, ReportLevel, UnwrapReport};
-use crate::vm::{Compiler, VM};
+use crate::vm::VM;
+use std::io::{Write, stdin, stdout};
 
 const REPL_VERSION: &str = "0.0.1";
 

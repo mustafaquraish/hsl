@@ -2,19 +2,20 @@
 #![allow(clippy::upper_case_acronyms)]
 
 use crate::ast::parser::Parser;
+use crate::compiler::Compiler;
 use crate::repl::Repl;
 use crate::report::{Maybe, ReportChannel};
-use crate::vm::{Compiler, VM};
+use crate::vm::VM;
 use args::ARGS;
 
-mod ast;
-mod vm;
-
 mod args;
+mod ast;
+mod compiler;
 mod debug;
 mod files;
 mod repl;
 mod report;
+mod vm;
 
 fn run_file(
     filename: &'static str,

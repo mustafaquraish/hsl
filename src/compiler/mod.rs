@@ -1,9 +1,12 @@
 use crate::ast::{Node, NodeKind, Operator};
+use crate::compiler::bytecode::{Chunk, OpCode};
 use crate::report::{Maybe, ReportKind, ReportSender};
 use crate::vm::Value;
-use crate::vm::bytecode::{Chunk, OpCode};
 use name_variant::NamedVariant;
 use std::fmt::Display;
+
+pub mod bytecode;
+mod variable;
 
 #[derive(NamedVariant)]
 enum CompileReport {

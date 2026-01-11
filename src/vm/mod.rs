@@ -1,12 +1,9 @@
+pub use crate::compiler::bytecode::{Chunk, OpCode};
 use crate::dprintln;
 use crate::report::{Maybe, ReportKind, ReportLevel};
-pub use crate::vm::bytecode::{Chunk, OpCode};
-pub use crate::vm::compiler::Compiler;
 pub use crate::vm::value::Value;
 
-mod bytecode;
-mod compiler;
-mod value;
+pub mod value;
 
 enum VMError {
     GlobalNotFound(String),
