@@ -1,0 +1,10 @@
+/// exit: 0
+let z = {
+    let k = {
+        let d = 2;
+        let z = d = 3;
+        z
+    }
+    k
+}
+assert z == 3, "Scopes and variables"

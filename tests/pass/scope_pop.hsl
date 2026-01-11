@@ -1,0 +1,7 @@
+/// exit: 0
+let z = 1
+{
+    let z = 2
+    assert z == 2
+}
+assert z == 1

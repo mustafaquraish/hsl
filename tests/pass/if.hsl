@@ -1,0 +1,2 @@
+/// exit: 0
+assert (if (10 % 2 == 0) 1 else 2) == 2
