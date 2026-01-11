@@ -169,18 +169,13 @@ impl Compiler {
             NodeKind::Assert(expr, message) => {
                 self.compile_expression(expr);
                 self.chunk.write_op(OpCode::Not);
-                self.chunk.write_op(OpCode::JumpIfFalse);
-                let start = self.chunk.source.len() - 1;
-                self.chunk.write_noops(2);
+                let jump = self.chunk.write_jump(OpCode::JumpIfFalse);
                 self.chunk.write_op(OpCode::ReadString);
                 self.chunk.write_string(message);
                 self.chunk.write_op(OpCode::ErrEcho);
                 self.chunk.write_op(OpCode::Stop);
                 self.chunk.write_u8(1);
-                let end = self.chunk.source.len() - 1;
-                let jump_offset = (end - start - 2) as u16;
-                self.chunk.source[start + 1] = (jump_offset >> 8) as u8;
-                self.chunk.source[start + 2] = (jump_offset) as u8;
+                self.chunk.patch_jump(jump);
             }
             _ => {
                 self.compile_expression(node);
@@ -210,30 +205,15 @@ impl Compiler {
             }
             NodeKind::If(condition, then_block, else_block) => {
                 self.compile_expression(condition);
-
-                self.chunk.write_op(OpCode::JumpIfFalse);
-                let jump1 = self.chunk.source.len() - 1;
-                self.chunk.write_noops(2);
-
+                let else_jump = self.chunk.write_jump(OpCode::JumpIfFalse);
                 self.compile_statement(then_block);
-                let mut end1 = self.chunk.source.len() - 1;
-
+                self.chunk.patch_jump(else_jump);
                 if let Some(else_block) = else_block {
-                    self.chunk.write_op(OpCode::Jump);
-                    let jump2 = self.chunk.source.len() - 1;
-                    self.chunk.write_noops(2);
-                    end1 = self.chunk.source.len() - 1;
-
+                    let then_jump = self.chunk.write_jump(OpCode::Jump);
+                    self.chunk.patch_jump(else_jump);
                     self.compile_statement(else_block);
-
-                    let end2 = self.chunk.source.len() - 1;
-                    let jump_offset = (end2 - jump2 - 2) as u16;
-                    self.chunk.source[jump2 + 1] = (jump_offset >> 8) as u8;
-                    self.chunk.source[jump2 + 2] = (jump_offset) as u8;
+                    self.chunk.patch_jump(then_jump);
                 }
-                let jump_offset = (end1 - jump1 - 2) as u16;
-                self.chunk.source[jump1 + 1] = (jump_offset >> 8) as u8;
-                self.chunk.source[jump1 + 2] = (jump_offset) as u8;
             }
             NodeKind::UnaryOperation(Operator::UnaryPlus, val) => self.compile_expression(val),
             NodeKind::UnaryOperation(op, val) => {

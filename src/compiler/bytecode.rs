@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use crate::vm::Value;
 use int_enum::IntEnum;
 use name_variant::NamedVariant;
@@ -118,6 +119,26 @@ impl Chunk {
         for _ in 0..count {
             self.write_op(OpCode::Nop);
         }
+    }
+
+    pub fn write_loop(&mut self, offset: u16) {
+        self.write_jump(OpCode::Loop);
+        self.write_u16(offset);
+    }
+
+    pub fn write_jump(&mut self, op: OpCode) -> usize {
+        self.write_op(op);
+        self.write_noops(2);
+        self.source.len() - 2
+    }
+
+    pub fn patch_jump(&mut self, offset: usize) {
+        let jump_offset: u16 = (self.source.len() - offset - 2)
+            .try_into()
+            .expect("Jump offset too big");
+
+        self.source[offset] = (jump_offset >> 8) as u8;
+        self.source[offset + 1] = jump_offset as u8;
     }
 
     pub fn write_op_with_u8(&mut self, op: OpCode, value: u8) {
