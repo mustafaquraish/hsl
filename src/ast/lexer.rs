@@ -168,16 +168,21 @@ impl<'contents> Lexer<'contents> {
                     };
                     self.make_simple(start, kind)
                 }
-                '0' if self.peek_char().is_some_and(|c| "box".contains(*c)) => {
+                '0' if self.peek_char().is_some_and(|c| "boxr".contains(*c)) => {
                     self.advance();
                     let base = match self.current_char.unwrap() {
                         'b' => Base::Binary,
                         'o' => Base::Octal,
                         'x' => Base::Hexadecimal,
+                        'r' => Base::RomanNumeral,
                         _ => unreachable!(),
                     };
                     self.advance();
-                    self.lex_integer(start, base)?;
+                    if matches![base, Base::RomanNumeral] {
+                        self.lex_roman(start)?;
+                    } else {
+                        self.lex_integer(start, base)?;
+                    }
                     self.make_simple(start + 2, base.into())
                 }
                 '0'..='9' => {
@@ -308,7 +313,6 @@ impl<'contents> Lexer<'contents> {
     }
 
     fn lex_integer(&mut self, start: usize, base: Base) -> Maybe<()> {
-        // todo: roman literal 0rIVVIM
         while let Some(char) = self.current_char {
             match (base, char.to_ascii_lowercase()) {
                 (Base::Binary, '0'..='1')
@@ -331,6 +335,30 @@ impl<'contents> Lexer<'contents> {
                         .into());
                 }
                 (_, '_') => self.advance(),
+                _ => break,
+            }
+        }
+        Ok(())
+    }
+
+    fn lex_roman(&mut self, start: usize) -> Maybe<()> {
+        while let Some(char) = self.current_char {
+            match char.to_ascii_lowercase() {
+                'i' | 'v' | 'x' | 'l' | 'c' | 'd' | 'm' => self.advance(),
+                '_' => self.advance(),
+                '0'..='9' | 'a'..='z' => {
+                    return Err(SyntaxError
+                        .make_labeled(
+                            self.span_at(self.current_index)
+                                .labeled(format!("{char:?} is not a valid Roman numeral")),
+                        )
+                        .with_label(
+                            self.span(start, self.current_index)
+                                .label()
+                                .with_color(Color::BrightBlue),
+                        )
+                        .into());
+                }
                 _ => break,
             }
         }
@@ -383,6 +411,7 @@ pub enum Base {
     Octal,
     Decimal,
     Hexadecimal,
+    RomanNumeral,
 }
 
 impl From<Base> for TokenKind {
@@ -392,6 +421,7 @@ impl From<Base> for TokenKind {
             Base::Octal => Self::IntegerLiteralOct,
             Base::Decimal => Self::IntegerLiteralDec,
             Base::Hexadecimal => Self::IntegerLiteralHex,
+            Base::RomanNumeral => Self::IntegerLiteralRom,
         }
     }
 }

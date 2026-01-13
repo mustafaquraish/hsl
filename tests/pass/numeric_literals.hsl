@@ -2,6 +2,8 @@
 /// 255
 /// 15
 /// 8
+/// 3724
 echo 0xFF
 echo 0o17
 echo 0b1000
+echo 0rMMMDCCXXIV

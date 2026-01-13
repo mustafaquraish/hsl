@@ -421,6 +421,14 @@ impl<'contents> Parser<'contents> {
                 })?;
                 Ok(NodeKind::IntegerLiteral(val).make(span).into())
             }
+            TokenKind::IntegerLiteralRom => {
+                self.advance();
+                let val = parse_roman(text).map_err(|err| {
+                    SyntaxError(format!("Invalid Roman numeral: {}", err))
+                        .make_labeled(span.label())
+                })?;
+                Ok(NodeKind::IntegerLiteral(val).make(span).into())
+            }
             TokenKind::EOF => Err(UnexpectedEOF
                 .make_labeled(span.labeled("Expected an expression"))
                 .into()),
@@ -566,4 +574,39 @@ impl<'contents> StringParser<'contents> {
         }
         Ok(buf)
     }
+}
+
+fn parse_roman(s: &str) -> Result<usize, &'static str> {
+    fn roman_value(c: char) -> Option<usize> {
+        match c.to_ascii_uppercase() {
+            'I' => Some(1),
+            'V' => Some(5),
+            'X' => Some(10),
+            'L' => Some(50),
+            'C' => Some(100),
+            'D' => Some(500),
+            'M' => Some(1000),
+            _ => None,
+        }
+    }
+
+    let chars: Vec<char> = s.chars().filter(|&c| c != '_').collect();
+    if chars.is_empty() {
+        return Err("empty Roman numeral");
+    }
+
+    let mut total: usize = 0;
+    let mut prev_value: usize = 0;
+
+    for c in chars.iter().rev() {
+        let value = roman_value(*c).ok_or("invalid Roman numeral character")?;
+        if value < prev_value {
+            total = total.saturating_sub(value);
+        } else {
+            total += value;
+        }
+        prev_value = value;
+    }
+
+    Ok(total)
 }
